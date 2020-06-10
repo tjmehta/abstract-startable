@@ -1,6 +1,6 @@
 {
   "name": "abstract-startable",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Abstract Class to represent entities that can be started and stopped",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",

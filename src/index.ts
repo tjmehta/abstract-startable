@@ -17,8 +17,8 @@ export enum state {
 export default abstract class AbstractStartable {
   protected abstract async _start(opts?: StartOptsType): Promise<void>
   protected abstract async _stop(opts?: StopOptsType): Promise<void>
-  private startPromise: Promise<void> | undefined
-  private stopPromise: Promise<void> | undefined
+  protected startPromise: Promise<void> | undefined
+  protected stopPromise: Promise<void> | undefined
   get state(): state {
     if (this.started) {
       if (this.stopPromise) return state.STOPPING

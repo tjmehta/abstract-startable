@@ -14,7 +14,7 @@ npm i --save abstract-startable
 
 ```js
 // esm
-import AbstractStartable from 'abstract-startable`
+import AbstractStartable from 'abstract-startable'
 // commonjs
 const AbstractStartable = require('abstract-startable')
 ```
@@ -22,7 +22,7 @@ const AbstractStartable = require('abstract-startable')
 #### Define a StartableClass and start an instance
 
 ```js
-import AbstractStartable from 'abstract-startable`
+import AbstractStartable from 'abstract-startable'
 
 class Car extends AbstractStartable {
   protected async _start() {

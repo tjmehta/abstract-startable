@@ -15,8 +15,8 @@ export enum state {
 }
 
 export default abstract class AbstractStartable {
-  protected abstract async _start(opts?: StartOptsType): Promise<void>
-  protected abstract async _stop(opts?: StopOptsType): Promise<void>
+  protected abstract _start(opts?: StartOptsType): Promise<void>
+  protected abstract _stop(opts?: StopOptsType): Promise<void>
   protected startPromise: Promise<void> | undefined
   protected stopPromise: Promise<void> | undefined
   get state(): state {

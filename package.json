@@ -2,11 +2,21 @@
   "name": "abstract-startable",
   "version": "1.0.1",
   "description": "Abstract Class to represent entities that can be started and stopped",
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.cjs",
+      "import": "./dist/esm/index.mjs"
+    }
+  },
   "scripts": {
     "prepublish": "npm run build",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "build": "npm run build-ts && npm run _build_esm_rename && npm run _build_cjs_rename",
+    "build-ts": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "_build_esm_rename": "mv dist/esm/index.js dist/esm/index.mjs && mv dist/esm/index.js.map dist/esm/index.mjs.map",
+    "_build_cjs_rename": "mv dist/cjs/index.js dist/cjs/index.cjs && mv dist/cjs/index.js.map dist/cjs/index.cjs.map",
     "test": "jest --coverage"
   },
   "repository": {

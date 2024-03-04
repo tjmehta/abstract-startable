@@ -1,3 +1,7 @@
+# v3.0.0
+
+- major: es2020
+
 # v2.0.0
 
 - major: fix cjs and esm support

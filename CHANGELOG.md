@@ -1,3 +1,7 @@
+# v3.0.1
+
+- patch: fix build files for exports
+
 # v3.0.0
 
 - major: es2020

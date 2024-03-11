@@ -5,6 +5,7 @@
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.mjs",
   "types": "dist/esm/index.d.ts",
+  "type": "module",
   "exports": {
     ".": {
       "require": "./dist/cjs/index.cjs",
@@ -15,8 +16,8 @@
     "prepublish": "npm run build",
     "build": "npm run build-ts && npm run _build_esm_rename && npm run _build_cjs_rename",
     "build-ts": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
-    "_build_esm_rename": "mv dist/esm/index.js dist/esm/index.mjs && mv dist/esm/index.js.map dist/esm/index.mjs.map",
-    "_build_cjs_rename": "mv dist/cjs/index.js dist/cjs/index.cjs && mv dist/cjs/index.js.map dist/cjs/index.cjs.map",
+    "_build_esm_rename": "rewrite-esm dist/esm",
+    "_build_cjs_rename": "rewrite-cjs dist/cjs",
     "test": "jest --coverage"
   },
   "repository": {
@@ -46,6 +47,7 @@
     "babel-jest": "^26.0.1",
     "jest": "^26.0.1",
     "prettier": "^2.0.5",
+    "rewrite-cjs-esm-paths": "^1.0.3",
     "typescript": "^3.9.3"
   }
 }

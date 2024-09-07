@@ -14,9 +14,12 @@ export enum state {
   STOPPING = 'STOPPING',
 }
 
-export default abstract class AbstractStartable {
-  protected abstract _start(opts?: StartOptsType): Promise<void>
-  protected abstract _stop(opts?: StopOptsType): Promise<void>
+export default abstract class AbstractStartable<
+  StartOpts extends StartOptsType = StartOptsType,
+  StopOpts extends StopOptsType = StopOptsType
+> {
+  protected abstract _start(opts?: StartOpts): Promise<void>
+  protected abstract _stop(opts?: StopOpts): Promise<void>
   protected startPromise: Promise<void> | undefined
   protected stopPromise: Promise<void> | undefined
   get state(): state {
@@ -34,7 +37,7 @@ export default abstract class AbstractStartable {
   }
   started: boolean = false
 
-  async start(opts?: StartOptsType): Promise<void> {
+  async start(opts?: StartOpts): Promise<void> {
     if (this.state === state.STARTED) return
     if (this.state === state.STARTING) return this.startPromise
     if (this.state === state.STOPPING) {
@@ -58,7 +61,7 @@ export default abstract class AbstractStartable {
     return this.startPromise
   }
 
-  async stop(opts?: StopOptsType): Promise<void> {
+  async stop(opts?: StopOpts): Promise<void> {
     if (this.state === state.STOPPED) return
     if (this.state === state.STOPPING) return this.stopPromise
     // this.state === state.STARTING

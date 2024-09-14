@@ -1,3 +1,8 @@
+# v4.0.0
+
+- major: support force start
+- major: remove server from error messages
+
 # v3.0.2
 
 - patch: add exports.types

@@ -79,10 +79,10 @@ export default abstract class AbstractStartable<
   protected async schedulePendingOp(
     nextPendingOp: Omit<PendingOp<StartOpts, StopOpts>, 'deferred'>,
   ): Promise<void> {
-    console.log('schedulePendingOp', {
-      nextPendingOp,
-      pendingOp: this.pendingOp,
-    })
+    // console.log('schedulePendingOp', {
+    //   nextPendingOp,
+    //   pendingOp: this.pendingOp,
+    // })
     if (this.pendingOp && this.pendingOp.op !== nextPendingOp.op) {
       this.pendingOp.deferred.reject(new Error('aborted'))
       this.pendingOp = null

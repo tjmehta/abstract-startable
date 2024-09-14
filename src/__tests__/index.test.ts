@@ -262,6 +262,80 @@ describe('AbstractStartable', () => {
       expect(stopImpl).toBeCalledTimes(0)
     })
 
+    it('should be started after: start, stop, start(force), stop', async () => {
+      const startImpl = jest.fn(() => timeout(1))
+      const stopImpl = jest.fn(() => timeout(1))
+      class FooClass extends AbstractStartable {
+        protected async _start() {
+          return startImpl()
+        }
+        protected async _stop() {
+          return stopImpl()
+        }
+      }
+      const foo = new FooClass()
+      let startPromise1
+      let stopPromise1
+      let startPromise2
+      let stopPromise2
+      // prevent uncaught rejection
+      Promise.allSettled([
+        (startPromise1 = foo.start()),
+        (stopPromise1 = foo.stop()),
+        (startPromise2 = foo.start({ force: true })),
+        (stopPromise2 = foo.stop()),
+      ])
+      await expect(startPromise1).rejects.toThrow(/stopping now/)
+      expect(foo.started).toBe(true)
+      await expect(stopPromise1).rejects.toThrow(/aborted/)
+      expect(foo.started).toBe(true)
+      await expect(startPromise2).rejects.toThrow(/aborted/)
+      expect(foo.started).toBe(true)
+      await stopPromise2
+      expect(foo.started).toBe(false)
+      expect(startImpl).toBeCalledTimes(1)
+      expect(stopImpl).toBeCalledTimes(1)
+    })
+
+    it('should be started after: start, stop, start(force), stop, start(force)', async () => {
+      const startImpl = jest.fn(() => timeout(1))
+      const stopImpl = jest.fn(() => timeout(1))
+      class FooClass extends AbstractStartable {
+        protected async _start() {
+          return startImpl()
+        }
+        protected async _stop() {
+          return stopImpl()
+        }
+      }
+      const foo = new FooClass()
+      let startPromise1
+      let stopPromise1
+      let startPromise2
+      let stopPromise2
+      let startPromise3
+      // prevent uncaught rejection
+      Promise.allSettled([
+        (startPromise1 = foo.start()),
+        (stopPromise1 = foo.stop()),
+        (startPromise2 = foo.start({ force: true })),
+        (stopPromise2 = foo.stop()),
+        (startPromise3 = foo.start({ force: true })),
+      ])
+      await startPromise1
+      expect(foo.started).toBe(true)
+      await expect(stopPromise1).rejects.toThrow(/aborted/)
+      expect(foo.started).toBe(true)
+      await expect(startPromise2).rejects.toThrow(/aborted/)
+      expect(foo.started).toBe(true)
+      await expect(stopPromise2).rejects.toThrow(/aborted/)
+      expect(foo.started).toBe(true)
+      await startPromise3
+      expect(foo.started).toBe(true)
+      expect(startImpl).toBeCalledTimes(1)
+      expect(stopImpl).toBeCalledTimes(0)
+    })
+
     describe('start errors', () => {
       it('should be stopped after: start, stop', async () => {
         const err = new Error('boom')

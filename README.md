@@ -77,6 +77,28 @@ tesla.stop().then(() => {
 })
 ```
 
+#### Multiple starts/stops in parallel w/ force
+
+```js
+const tesla = new Car()
+console.log(tesla.started) // log: false
+tesla.start().then((err) => {
+  console.log(tesla.started) // log: true
+})
+tesla.stop().catch((err) => {
+  console.error(err) // log: Error: aborted
+})
+tesla.start({ force: true }).then(() => {
+  console.error(err) // log: Error: aborted
+})
+tesla.stop().catch((err) => {
+  console.error(err) // log: Error: aborted
+})
+tesla.start({ force: true }).then(() => {
+  console.log(tesla.started) // log: true
+})
+```
+
 # License
 
 MIT

@@ -1,3 +1,8 @@
+# v4.1.0
+
+- minor: significant code refactor for running and scheduling ops
+- minor: better support for concurrent force stops
+
 # v4.0.0
 
 - major: support force start

@@ -1,3 +1,4 @@
+import BaseError from 'baseerr'
 import createDeferredPromise, { DeferredPromise } from 'p-defer'
 
 export type LoggerType = {
@@ -21,7 +22,7 @@ export enum Op {
   STOP = 'STOP',
 }
 
-type PendingOp<
+type OpInfo<
   StartOpts extends StartOptsType = StartOptsType,
   StopOpts extends StopOptsType = StopOptsType
 > =
@@ -33,21 +34,6 @@ type PendingOp<
   | {
       op: Op.STOP
       deferred: DeferredPromise<void>
-      opts?: StopOpts
-    }
-
-type CurrentOp<
-  StartOpts extends StartOptsType = StartOptsType,
-  StopOpts extends StopOptsType = StopOptsType
-> =
-  | {
-      op: Op.START
-      promise: Promise<void>
-      opts?: StartOpts
-    }
-  | {
-      op: Op.STOP
-      promise: Promise<void>
       opts?: StopOpts
     }
 
@@ -57,8 +43,8 @@ export default abstract class AbstractStartable<
 > {
   protected abstract _start(opts?: StartOpts): Promise<void>
   protected abstract _stop(opts?: StopOpts): Promise<void>
-  protected currentOp: CurrentOp<StartOpts, StopOpts> | null = null
-  protected pendingOp: PendingOp<StartOpts, StopOpts> | null = null
+  protected currentOp: OpInfo<StartOpts, StopOpts> | null = null
+  protected pendingOp: OpInfo<StartOpts, StopOpts> | null = null
   get state(): state {
     if (this.pendingOp?.op === Op.START) {
       return state.STARTING
@@ -76,29 +62,98 @@ export default abstract class AbstractStartable<
   }
   started: boolean = false
 
-  protected async schedulePendingOp(
-    nextPendingOp: Omit<PendingOp<StartOpts, StopOpts>, 'deferred'>,
+  async start(opts?: StartOpts): Promise<void> {
+    if (this.state === state.STARTED) return
+    if (this.state === state.STARTING) return this.currentOp!.deferred.promise
+    if (this.state === state.STOPPING) {
+      if (opts?.force) {
+        const startPromise = this.scheduleOp({ op: Op.START, opts })
+        this.forceStop().catch(() => {
+          /* noop */
+        })
+        return startPromise
+      }
+      return Promise.reject(new Error('cannot start while stopping'))
+    }
+
+    // this.state === state.STOPPED
+    await this.runOp({ op: Op.START, opts })
+
+    // @ts-ignore this.state could have changed
+    if (this.state === state.STOPPING) {
+      throw new Error('started successfully, but stopping now')
+    }
+  }
+
+  async stop(opts?: StopOpts): Promise<void> {
+    if (this.state === state.STOPPED) return
+    if (this.state === state.STOPPING) {
+      if (opts?.force) {
+        return this.forceStop(opts)
+      }
+      return this.currentOp!.deferred.promise
+    }
+    if (this.state === state.STARTING) {
+      return this.scheduleOp({ op: Op.STOP, opts })
+    }
+
+    // this.state === state.STARTED
+    return this.runOp({ op: Op.STOP, opts })
+  }
+
+  private async scheduleOp(
+    pendingOp: Omit<OpInfo<StartOpts, StopOpts>, 'deferred'> & {
+      deferred?: DeferredPromise<void>
+    },
   ): Promise<void> {
-    // console.log('schedulePendingOp', {
-    //   nextPendingOp,
-    //   pendingOp: this.pendingOp,
-    // })
-    if (this.pendingOp && this.pendingOp.op !== nextPendingOp.op) {
-      this.pendingOp.deferred.reject(new Error('aborted'))
-      this.pendingOp = null
-      // fall through
+    console.log('scheduleOp', {
+      nextPendingOp: pendingOp,
+      pendingOp: this.pendingOp,
+    })
+    if (this.pendingOp) {
+      /* istanbul ignore next */
+      if (this.pendingOp.op === pendingOp.op) {
+        // based on scheduleOp invocations, this should only happen with forceStop?
+        // jest ignore coverage
+        if (
+          Boolean(pendingOp.opts?.force) &&
+          !Boolean(this.pendingOp.opts?.force)
+        ) {
+          // override old pending with new pending
+          this.pendingOp = {
+            ...pendingOp,
+            deferred: this.pendingOp.deferred,
+          } as OpInfo<StartOpts, StopOpts>
+          return this.pendingOp.deferred.promise
+        } else {
+          // use existing pending
+          if (pendingOp.deferred == null) return this.pendingOp.deferred.promise
+          this.pendingOp.deferred.promise
+            .then(() => {
+              pendingOp.deferred!.resolve()
+            })
+            .catch((err) => {
+              pendingOp.deferred!.reject(err)
+            })
+          return pendingOp.deferred.promise
+        }
+      } else {
+        this.pendingOp.deferred.reject(new Error('aborted'))
+        this.pendingOp = null
+        // fall through to this.pendingOp = null
+      }
     }
     if (this.pendingOp == null) {
       this.pendingOp = {
-        ...nextPendingOp,
+        ...pendingOp,
         deferred: createDeferredPromise<void>(),
-      } as PendingOp<StartOpts, StopOpts>
+      } as OpInfo<StartOpts, StopOpts>
     }
 
     return this.pendingOp.deferred.promise
   }
 
-  protected async runPendingOp(finishedOp?: Op): Promise<void> {
+  private async runPendingOp(finishedOp?: Op) {
     const pendingOp = this.pendingOp
     if (pendingOp == null) {
       return
@@ -110,87 +165,94 @@ export default abstract class AbstractStartable<
       pendingOp.deferred.resolve()
       return
     }
-    try {
-      if (pendingOp.op === Op.START) {
-        await this.start(pendingOp.opts)
-      } else {
-        // pendingOp.op === op.STOP
-        await this.stop(pendingOp.opts)
-      }
-      pendingOp.deferred.resolve()
-    } catch (err) {
-      pendingOp.deferred.reject(err)
-    }
+    // try {
+    this.runOp(pendingOp).catch((err) => {
+      //noop
+    })
   }
 
-  async start(opts?: StartOpts): Promise<void> {
-    if (this.state === state.STARTED) return
-    if (this.state === state.STARTING) return this.currentOp!.promise
-    if (this.state === state.STOPPING) {
-      if (opts?.force) {
-        return this.schedulePendingOp({ op: Op.START, opts })
+  private async runOp(
+    _currentOp:
+      | OpInfo<StartOpts, StopOpts>
+      | Omit<OpInfo<StartOpts, StopOpts>, 'deferred'>,
+  ): Promise<void> {
+    const deferred =
+      (_currentOp as OpInfo<StartOpts, StopOpts>).deferred ??
+      createDeferredPromise<void>()
+    const currentOp = { ..._currentOp, deferred } as OpInfo<StartOpts, StopOpts>
+    this.currentOp = currentOp
+
+    // run op in bg
+    const self = this
+    ;(async () => {
+      try {
+        if (currentOp.op === Op.START) {
+          await self._start(currentOp.opts as StartOpts)
+        } else {
+          // op === op.STOP
+          await self._stop(currentOp.opts as StopOpts)
+        }
+        // stop was sucessful
+        if (self.currentOp == currentOp) {
+          self.started = currentOp.op === Op.START
+          self.currentOp = null
+          self.runPendingOp(currentOp.op) // kick off next op first..
+          currentOp!.deferred.resolve()
+        }
+      } catch (err) {
+        if (self.currentOp == currentOp) {
+          // self.started ? depends on implementation..
+          self.currentOp = null
+          self.runPendingOp(currentOp.op) // kick off next op first..
+          currentOp!.deferred.reject(err)
+        }
       }
-      return Promise.reject(new Error('cannot start while stopping'))
-    }
+    })()
 
-    // this.state === state.STOPPED
-    let currentOp
-    try {
-      currentOp = this.currentOp = {
-        op: Op.START,
-        promise: this._start(opts),
-        opts,
-      }
-      await this.currentOp.promise
-    } catch (err) {
-      this.runPendingOp(Op.STOP)
-      throw err
-    } finally {
-      if (this.currentOp === currentOp) {
-        this.currentOp = null
-      }
-    }
-
-    // start was successful
-    this.started = true
-
-    // check for pending op
-    this.runPendingOp(Op.START)
-
-    // @ts-ignore this.state could have changed
-    if (this.state === state.STOPPING) {
-      throw new Error('started successfully, but stopping now')
-    }
+    return currentOp.deferred.promise
   }
 
-  async stop(opts?: StopOpts): Promise<void> {
-    if (this.state === state.STOPPED) return
-    if (this.state === state.STOPPING) return this.currentOp!.promise
-    if (this.state === state.STARTING) {
-      return this.schedulePendingOp({ op: Op.STOP, opts })
-    }
+  private async forceStop(
+    opts?: StartOpts | StopOpts | undefined,
+  ): Promise<void> {
+    const currentOp = this.currentOp
+    const pendingOp = this.pendingOp
 
-    // this.state === state.STARTED
-    let currentOp
-    try {
-      currentOp = this.currentOp = {
+    BaseError.assert(
+      currentOp?.op === Op.STOP || pendingOp?.op === Op.STOP,
+      'cannot override start with stop',
+      {
+        currentOp: currentOp?.op,
+        pendingOp: pendingOp?.op,
+      },
+    )
+
+    if (currentOp?.op === Op.STOP) {
+      if (currentOp.opts?.force) {
+        // already forcing, no need to override
+        return currentOp.deferred.promise
+      }
+
+      // run force stop, and only "listen" to the force stop
+      this.currentOp = null
+      this.runOp({
         op: Op.STOP,
-        promise: this._stop(opts),
         opts,
+        deferred: currentOp.deferred,
+      } as OpInfo<StartOpts, StopOpts>)
+    } else {
+      // pendingOp?.op === Op.STOP
+      if (pendingOp?.opts?.force) {
+        // already forcing, no need to override
+        return pendingOp.deferred.promise
       }
-      await this.currentOp.promise
-    } catch (err) {
-      throw err
-    } finally {
-      if (this.currentOp === currentOp) {
-        this.currentOp = null
-      }
+
+      this.pendingOp = null
+      this.scheduleOp({
+        op: Op.STOP,
+        opts,
+        deferred: pendingOp?.deferred,
+      })
     }
-
-    // stop was successful
-    this.started = false
-
-    // check for pending op
-    this.runPendingOp(Op.STOP)
   }
 }

@@ -122,7 +122,7 @@ describe('AbstractStartable', () => {
   })
 
   describe('parallel start/stop combinations', () => {
-    it('should be started after: start, start', async () => {
+    it('should be started after: start | start', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -142,7 +142,7 @@ describe('AbstractStartable', () => {
       expect(foo.started).toBe(true)
     })
 
-    it('should be stopped after: start, stop', async () => {
+    it('should be stopped after: start | stop', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -162,7 +162,7 @@ describe('AbstractStartable', () => {
       expect(foo.started).toBe(false)
     })
 
-    it('should be stopped after: start, stop, stop', async () => {
+    it('should be stopped after: start | stop | stop', async () => {
       const startImpl = jest.fn(() => timeout(10))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -185,7 +185,30 @@ describe('AbstractStartable', () => {
       expect(foo.started).toBe(false)
     })
 
-    it('should be stopped after: start, stop(force), stop(force)', async () => {
+    it('should be stopped after: start | stop | stop(force)', async () => {
+      const startImpl = jest.fn(() => timeout(1))
+      const stopImpl = jest.fn(() => timeout(1))
+      class FooClass extends AbstractStartable {
+        protected async _start() {
+          return startImpl()
+        }
+        protected async _stop() {
+          return stopImpl()
+        }
+      }
+      const foo = new FooClass()
+      const startPromise1 = foo.start()
+      const stopPromise1 = foo.stop()
+      const stopPromise2 = foo.stop({ force: true })
+      await expect(startPromise1).rejects.toThrow(/stopping now/)
+      expect(foo.started).toBe(true)
+      await stopPromise1
+      await stopPromise2
+      expect(foo.started).toBe(false)
+      expect(foo.started).toBe(false)
+    })
+
+    it('should be stopped after: start | stop(force) | stop(force)', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -208,7 +231,7 @@ describe('AbstractStartable', () => {
       expect(foo.started).toBe(false)
     })
 
-    it('should be stopped after: stop, stop (after started)', async () => {
+    it('should be stopped after: start -> stop | stop', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -230,7 +253,29 @@ describe('AbstractStartable', () => {
       expect(foo.started).toBe(false)
     })
 
-    it('should be started after: start, stop, start', async () => {
+    it('should be stopped after: start -> stop(force) | stop(force)', async () => {
+      const startImpl = jest.fn(() => timeout(1))
+      const stopImpl = jest.fn(() => timeout(1))
+      class FooClass extends AbstractStartable {
+        protected async _start() {
+          return startImpl()
+        }
+        protected async _stop() {
+          return stopImpl()
+        }
+      }
+      const foo = new FooClass()
+      await foo.start()
+      expect(foo.started).toBe(true)
+      const stopPromise1 = foo.stop({ force: true })
+      const stopPromise2 = foo.stop({ force: true })
+      await stopPromise1
+      expect(foo.started).toBe(false)
+      await stopPromise2
+      expect(foo.started).toBe(false)
+    })
+
+    it('should be started after: start | stop | start', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -254,7 +299,7 @@ describe('AbstractStartable', () => {
       expect(stopImpl).toBeCalledTimes(1)
     })
 
-    it('should be started after: start, stop, start(force)', async () => {
+    it('should be started after: start | stop | start(force)', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -285,7 +330,7 @@ describe('AbstractStartable', () => {
       expect(stopImpl).toBeCalledTimes(0)
     })
 
-    it('should be started after: start, stop, start(force), stop', async () => {
+    it('should be started after: start | stop | start(force) | stop', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -320,7 +365,7 @@ describe('AbstractStartable', () => {
       expect(stopImpl).toBeCalledTimes(1)
     })
 
-    it('should be started after: start, stop, start(force), stop, start(force)', async () => {
+    it('should be started after: start | stop | start(force) | stop | start(force)', async () => {
       const startImpl = jest.fn(() => timeout(1))
       const stopImpl = jest.fn(() => timeout(1))
       class FooClass extends AbstractStartable {
@@ -360,7 +405,7 @@ describe('AbstractStartable', () => {
     })
 
     describe('start errors', () => {
-      it('should be stopped after: start, stop', async () => {
+      it('should be stopped after: start | stop', async () => {
         const err = new Error('boom')
         const startImpl = jest.fn(() => Promise.reject(err))
         const stopImpl = jest.fn(() => timeout(1))
@@ -383,7 +428,7 @@ describe('AbstractStartable', () => {
     })
 
     describe('stop errors', () => {
-      it('should be stopped after: start, stop(err)', async () => {
+      it('should be stopped after: start | stop(err)', async () => {
         const err = new Error('boom')
         const startImpl = jest.fn(() => timeout(1))
         const stopImpl = jest.fn(() => Promise.reject(err))

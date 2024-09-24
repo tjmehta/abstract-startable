@@ -102,19 +102,15 @@ export default abstract class AbstractStartable<
   }
 
   private async scheduleOp(
-    pendingOp: Omit<OpInfo<StartOpts, StopOpts>, 'deferred'> & {
-      deferred?: DeferredPromise<void>
-    },
+    pendingOp: Omit<OpInfo<StartOpts, StopOpts>, 'deferred'>,
   ): Promise<void> {
     console.log('scheduleOp', {
       nextPendingOp: pendingOp,
       pendingOp: this.pendingOp,
     })
     if (this.pendingOp) {
-      /* istanbul ignore next */
       if (this.pendingOp.op === pendingOp.op) {
         // based on scheduleOp invocations, this should only happen with forceStop?
-        // jest ignore coverage
         if (
           Boolean(pendingOp.opts?.force) &&
           !Boolean(this.pendingOp.opts?.force)
@@ -127,15 +123,8 @@ export default abstract class AbstractStartable<
           return this.pendingOp.deferred.promise
         } else {
           // use existing pending
-          if (pendingOp.deferred == null) return this.pendingOp.deferred.promise
-          this.pendingOp.deferred.promise
-            .then(() => {
-              pendingOp.deferred!.resolve()
-            })
-            .catch((err) => {
-              pendingOp.deferred!.reject(err)
-            })
-          return pendingOp.deferred.promise
+          // pendingOp.deferred == null
+          return this.pendingOp.deferred.promise
         }
       } else {
         this.pendingOp.deferred.reject(new Error('aborted'))
@@ -235,23 +224,16 @@ export default abstract class AbstractStartable<
 
       // run force stop, and only "listen" to the force stop
       this.currentOp = null
-      this.runOp({
+      return this.runOp({
         op: Op.STOP,
         opts,
         deferred: currentOp.deferred,
       } as OpInfo<StartOpts, StopOpts>)
     } else {
       // pendingOp?.op === Op.STOP
-      if (pendingOp?.opts?.force) {
-        // already forcing, no need to override
-        return pendingOp.deferred.promise
-      }
-
-      this.pendingOp = null
-      this.scheduleOp({
+      return this.scheduleOp({
         op: Op.STOP,
         opts,
-        deferred: pendingOp?.deferred,
       })
     }
   }

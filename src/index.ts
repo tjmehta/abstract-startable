@@ -142,7 +142,7 @@ export default abstract class AbstractStartable<
     return this.pendingOp.deferred.promise
   }
 
-  private async runPendingOp(finishedOp?: Op) {
+  private async runPendingOp(successfulFinishedOp?: Op) {
     const pendingOp = this.pendingOp
     if (pendingOp == null) {
       return
@@ -150,7 +150,7 @@ export default abstract class AbstractStartable<
 
     this.pendingOp = null
 
-    if (pendingOp.op === finishedOp) {
+    if (pendingOp.op === successfulFinishedOp) {
       pendingOp.deferred.resolve()
       return
     }
@@ -192,7 +192,7 @@ export default abstract class AbstractStartable<
         if (self.currentOp == currentOp) {
           // self.started ? depends on implementation..
           self.currentOp = null
-          self.runPendingOp(currentOp.op) // kick off next op first..
+          self.runPendingOp() // kick off next op first..
           currentOp!.deferred.reject(err)
         }
       }
